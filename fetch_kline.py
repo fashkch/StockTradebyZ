@@ -42,7 +42,8 @@ def _get_mktcap_ak() -> pd.DataFrame:
     """实时快照，返回列：code, mktcap（单位：元）"""
     for attempt in range(1, 4):
         try:
-            df = ak.stock_zh_a_spot_em()
+            # df = ak.stock_zh_a_spot_em() # 沪深京 A 股 https://akshare.akfamily.xyz/data/stock/stock.html#id13
+            df = ak.fund_etf_spot_em() # ETF 基金实时行情 https://akshare.akfamily.xyz/data/fund/fund_public.html#etf
             break
         except Exception as e:
             logger.warning("AKShare 获取市值快照失败(%d/3): %s", attempt, e)
@@ -185,7 +186,8 @@ def _get_kline_mootdx(code: str, start: str, end: str, adjust: str, freq_code: i
     freq = _FREQ_MAP.get(freq_code, "day")
     client = Quotes.factory(market="std")
     try:
-        df = client.bars(symbol=symbol, frequency=freq, adjust=adjust or None)
+        df = client.bars(symbol=symbol, frequency=freq) # ETF不传入复权标志
+        # df = client.bars(symbol=symbol, frequency=freq, adjust=adjust or None)
     except Exception as e:
         logger.warning("Mootdx 拉取 %s 失败: %s", code, e)
         return pd.DataFrame()
@@ -293,12 +295,12 @@ def main():
     parser.add_argument("--datasource", choices=["tushare", "akshare", "mootdx"], default="mootdx", help="历史 K 线数据源")
     parser.add_argument("--frequency", type=int, choices=list(_FREQ_MAP.keys()), default=4, help="K线频率编码，参见说明")
     parser.add_argument("--exclude-gem", default=True, help="True则排除创业板/科创板/北交所")
-    parser.add_argument("--min-mktcap", type=float, default=5e9, help="最小总市值（含），单位：元")
+    parser.add_argument("--min-mktcap", type=float, default=5e8, help="最小总市值（含），单位：元")
     parser.add_argument("--max-mktcap", type=float, default=float("+inf"), help="最大总市值（含），单位：元，默认无限制")
-    parser.add_argument("--start", default="20190101", help="起始日期 YYYYMMDD 或 'today'")
+    parser.add_argument("--start", default="20250401", help="起始日期 YYYYMMDD 或 'today'")
     parser.add_argument("--end", default="today", help="结束日期 YYYYMMDD 或 'today'")
-    parser.add_argument("--out", default="./data", help="输出目录")
-    parser.add_argument("--workers", type=int, default=3, help="并发线程数")
+    parser.add_argument("--out", default="./data/ETF", help="输出目录")
+    parser.add_argument("--workers", type=int, default=10, help="并发线程数")
     args = parser.parse_args()
 
     # ---------- Token 处理 ---------- #
