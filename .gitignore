@@ -144,6 +144,17 @@ data/
 # 日志文件
 *.log
 fetch.log
+main.log
+select_results.log
+
+# ETF信息文件
+etf_info.csv
+
+# 测试文件
+test_integration.py
+example_usage.py
+test_etf_info.py
+test_simple_etf.py
 
 # 配置文件（如果包含敏感信息）
 # configs.json

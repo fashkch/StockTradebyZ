@@ -39,7 +39,7 @@ for noisy in ("httpx", "urllib3", "_client", "akshare"):
 # --------------------------- 市值快照 --------------------------- #
 
 def _get_mktcap_ak() -> pd.DataFrame:
-    """实时快照，返回列：code, mktcap（单位：元）"""
+    """实时快照，返回包含所有标的信息的DataFrame"""
     for attempt in range(1, 4):
         try:
             # df = ak.stock_zh_a_spot_em() # 沪深京 A 股 https://akshare.akfamily.xyz/data/stock/stock.html#id13
@@ -51,8 +51,17 @@ def _get_mktcap_ak() -> pd.DataFrame:
     else:
         raise RuntimeError("AKShare 连续三次拉取市值快照失败！")
 
-    df = df[["代码", "总市值"]].rename(columns={"代码": "code", "总市值": "mktcap"})
-    df["mktcap"] = pd.to_numeric(df["mktcap"], errors="coerce")
+    # 保留所有原始列，只添加两个新列
+    df = df.copy()
+    
+    # 添加 code 列（等于代码）
+    if "代码" in df.columns:
+        df["code"] = df["代码"]
+    
+    # 添加 mktcap 列（总市值转数字）
+    if "总市值" in df.columns:
+        df["mktcap"] = pd.to_numeric(df["总市值"], errors="coerce")
+    
     return df
 
 # --------------------------- 股票池筛选 --------------------------- #
@@ -303,6 +312,10 @@ def main():
     parser.add_argument("--workers", type=int, default=10, help="并发线程数")
     args = parser.parse_args()
 
+    return run_fetch_kline(args)
+
+def run_fetch_kline(args):
+    """可被其他模块调用的函数"""
     # ---------- Token 处理 ---------- #
     if args.datasource == "tushare":
         ts_token = " "  # 在这里补充token
@@ -332,7 +345,8 @@ def main():
 
     if not codes:
         logger.error("筛选结果为空，请调整参数！")
-        sys.exit(1)
+        # sys.exit(1)
+        return None, None
 
     logger.info(
         "开始抓取 %d 支股票 | 数据源:%s | 频率:%s | 日期:%s → %s",
@@ -362,6 +376,9 @@ def main():
             pass
 
     logger.info("全部任务完成，数据已保存至 %s", out_dir.resolve())
+    
+    # 返回ETF信息和输出目录
+    return mktcap_df, out_dir
 
 
 if __name__ == "__main__":

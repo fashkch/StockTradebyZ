@@ -1,0 +1,24 @@
+{
+  "fetch": {
+    "datasource": "mootdx",
+    "frequency": 4,
+    "exclude_gem": false,
+    "min_mktcap": 500000000,
+    "max_mktcap": 100000000000000,
+    "start": "20250401",
+    "end": "20250828",
+    "out": "./data/ETF",
+    "workers": 10
+  },
+  "select": {
+    "data_dir": "./data/ETF",
+    "config": "./configs.json",
+    "date": null,
+    "tickers": "all"
+  },
+  "workflow": {
+    "auto_fetch": true,
+    "auto_select": true,
+    "save_etf_info": true
+  }
+}
