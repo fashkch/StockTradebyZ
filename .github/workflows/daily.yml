@@ -1,0 +1,85 @@
+name: Run main.py daily 
+
+on:
+  schedule:
+    - cron: "0 11 * * *"  # 注意：cron 用的是 UTC；11:00 UTC = 北京时间 19:00 (UTC+8)
+  workflow_dispatch:       # 允许手动触发，便于测试
+
+permissions:
+  contents: read
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: feat-ETF   # 指定 checkout dev
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install deps and run mootdx bestip
+        run: |
+          set -euo pipefail
+          pip install --upgrade pip
+          # 若 requirements.txt 未包含 mootdx，这行也能一起装上 mootdx
+          pip install -r requirements.txt mootdx
+
+          {
+            echo "=== $(date -u '+%F %T') :: start mootdx bestip ==="
+            python -m mootdx bestip -vv
+            echo "=== $(date -u '+%F %T') :: end mootdx bestip ==="
+          } >> output.log 2>&1
+
+      - name: Run main.py
+        env:
+          PYTHONUNBUFFERED: "1"   # 让日志更实时
+        run: |
+          set -euo pipefail
+          echo "=== $(date -u '+%F %T') :: run main.py ===" >> output.log
+          python main.py >> output.log 2>&1
+
+      - name: Send log to webhook
+        env:
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+          # 取最后 120 行，避免过长；按需调整
+          LOG_TAIL=$(tail -n 200 output.log | sed 's/"/\\"/g')
+
+          # 默认用通用 JSON 字段 "text"。不同平台请按注释切换对应 payload。
+          # 1) Slack：{"text":"..."}
+          # 2) Discord：{"content":"..."}
+          # 3) 企业微信机器人：{"msgtype":"text","text":{"content":"..."}}
+          # 4) 飞书机器人：{"msg_type":"text","content":{"text":"..."}}
+
+          # === 选择其一：把下面这一段改成你平台需要的格式 ===
+          # Slack/通用(text)：
+          # printf '{"text":"%s"}' "$LOG_TAIL" > payload.json
+
+          # # Discord：
+          # printf '{"content":"%s"}' "$LOG_TAIL" > payload.json
+
+          # # 企业微信：
+          # printf '{"msgtype":"text","text":{"content":"%s"}}' "$LOG_TAIL" > payload.json
+
+          # # 飞书：
+          printf '{"msg_type":"text","content":{"text":"%s"}}' "$LOG_TAIL" > payload.json
+          # === 选择其一结束 ===
+
+          # 发送。注意不 echo URL，避免泄露
+          curl -sS -X POST -H "Content-Type: application/json" \
+               --data-binary @payload.json \
+               "$WEBHOOK_URL" >/dev/null
+
+      - name: Upload full log as artifact (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: output-log
+          path: output.log
+          retention-days: 7
