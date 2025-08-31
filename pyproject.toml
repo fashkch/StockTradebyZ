@@ -1,0 +1,18 @@
+[project]
+name = "stocktradebyz"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "akshare>=1.17.44",
+    "mootdx>=0.11.7",
+    "pandas>=2.3.2",
+    "scipy>=1.16.1",
+    "tqdm>=4.67.1",
+    "tushare>=1.4.24",
+]
+
+[[tool.uv.index]]
+url = "https://mirrors.aliyun.com/pypi/simple"
+default = true
